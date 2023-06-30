@@ -1,0 +1,8 @@
+jupyterlab
+numpy
+cpmpy
+matplotlib
+ortools
+networkx
+streamlit
+
