@@ -10,6 +10,8 @@ import networkx as nx
 
 import utils
 
+import tqdm
+
 Point = namedtuple("Point", ['x', 'y'])
 
 
@@ -103,48 +105,53 @@ def improve(points, solution):
     return current_solution
 
 
-def rearrange_edges(G):
-    start, end = next(iter(G.edges()))
-    visited = set([start, end])
-    while end != start:
-        node = next(G.neighbors(end), None)
-        if node != None:
-            end = node
-            visited.add(node)
-        else:
-            node = next((n for n in G.predecessors(end) if n not in visited), None)
-            if node == None:
-                node = start
-            G.remove_edge(node, end)
-            G.add_edge(end, node)
-            end = node
-            visited.add(node)
+# def rearrange_edges(G):
+#     start, end = next(iter(G.edges()))
+#     visited = set([start, end])
+#     while end != start:
+#         node = next(G.neighbors(end), None)
+#         if node != None:
+#             end = node
+#             visited.add(node)
+#         else:
+#             node = next((n for n in G.predecessors(end) if n not in visited), None)
+#             if node == None:
+#                 node = start
+#             G.remove_edge(node, end)
+#             G.add_edge(end, node)
+#             end = node
+#             visited.add(node)
 
 
 def length_by_nodes(node1, node2, points):
     return utils.length(points[node1], points[node2])
 
 
+# def improve2_helper(G, points):
+#     length_by_nodes_p = functools.partial(length_by_nodes, points=points)
+
+#     G_temp = G.copy()
+#     for comb in itertools.islice(itertools.combinations(G.edges(), 2), None):
+#         edge1, edge2 = comb
+#         if len(set(edge1).union(set(edge2))) < 4:
+#             continue
+#         if (
+#             length_by_nodes_p(edge1[0], edge2[0]) + length_by_nodes_p(edge1[1], edge2[1]) >
+#             length_by_nodes_p(*edge1) + length_by_nodes_p(*edge2)
+#             ):
+#             continue
+#         G_temp.remove_edges_from(comb)
+#         G_temp.add_edge(edge1[0], edge2[0])
+#         G_temp.add_edge(edge1[1], edge2[1])
+
+#         rearrange_edges(G_temp)
+#         return G_temp
+
 def improve2_helper(G, points):
     length_by_nodes_p = functools.partial(length_by_nodes, points=points)
 
-    # pbar_text = "checking pairs of edges"
-    # pbar = st.progress(0.0, text=pbar_text)
-
-    # # there should be n*(n-1)/2 pairs
-    # n = len(G.edges)
-    # total = n * (n - 1) // 2
-
-    # c = itertools.count(1)
-
-    # cur_solution = utils.graph_to_solution(G)
-    # cur_length = utils.calc_solution_length(cur_solution)
-    G_temp = G.copy()
     for comb in itertools.islice(itertools.combinations(G.edges(), 2), None):
         edge1, edge2 = comb
-        # c_value = next(c)
-        # if c_value % 100 == 0:
-        #     pbar.progress(c_value / total, text=pbar_text)
         if len(set(edge1).union(set(edge2))) < 4:
             continue
         if (
@@ -152,22 +159,50 @@ def improve2_helper(G, points):
             length_by_nodes_p(*edge1) + length_by_nodes_p(*edge2)
             ):
             continue
-        G_temp.remove_edges_from(comb)
-        G_temp.add_edge(edge1[0], edge2[0])
-        G_temp.add_edge(edge1[1], edge2[1])
-
-        rearrange_edges(G_temp)
-        return G_temp
+        nodes = [edge2[0]]
+        while nodes[-1] != edge1[1]:
+            # print(f'{nodes[-1]=}')
+            nodes.extend(G.predecessors(nodes[-1]))
+            # print(f'{nodes=}')
+        nodes.append(edge2[1])
+        # print(nodes)
+        # print(edge1)
+        # print(edge2)
+        while nodes[-1] != edge1[0]:
+            # print("2")
+            nodes.extend(G.neighbors(nodes[-1]))
+            # print(f'{nodes=}')
+            # exit(0)
+        G_ret = nx.DiGraph()
+        nx.add_cycle(G_ret, nodes)
+        return G_ret
 
 
 def improve2(G, points):
     G_improved = improve2_helper(G, points)
 
+    best = G
+
+    c = 0
+
+    # pbar = tqdm.tqdm(total=10000)
+
     while G_improved:
+
+        best = G_improved
 
         G_improved = improve2_helper(G_improved, points)
 
-    return utils.graph_to_solution(G_improved) if G_improved else utils.graph_to_solution(G)
+        c += 1
+
+        # pbar.update(1)
+
+        if c > 10000:
+            break
+
+    # pbar.close()
+
+    return utils.graph_to_solution(best)
 
 
 
